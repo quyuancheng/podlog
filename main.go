@@ -23,7 +23,7 @@ type LogEntry struct {
 	Timestamp string `json:"timestamp"`
 	//Level     string `json:"level"`
 	//Message   string `json:"message"`
-	Request   Request `json:"request"`
+	Request Request `json:"request"`
 }
 
 type Request struct {
@@ -35,7 +35,6 @@ type Request struct {
 	Latency    string `json:"latency"`
 	ReqID      string `json:"reqID"`
 }
-
 
 func main() {
 	var config *rest.Config
@@ -69,7 +68,7 @@ func main() {
 	}
 	var containerName string
 	containerName = "nginx"
-	for _, pod := range pods.Items{
+	for _, pod := range pods.Items {
 		if strings.Contains(pod.Name, "chartmuseum") {
 			//for _, c := range pod.Spec.Containers {
 			//	if strings.Contains(c.Name, "chartmuseum"){
@@ -122,13 +121,20 @@ func watchLogs(stream io.ReadCloser) (string, error) {
 			return "", fmt.Errorf("failed to read log line: %v", err)
 		}
 		fmt.Printf("Log line: %s", line)
-		var logEntry LogEntry
-		err = json.Unmarshal(line, &logEntry)
+		var req string
+		if strings.Contains(string(line), "Request served") {
+			comma1 := strings.Index(string(line), "{")
+			comma2 := strings.Index(string(line), "}")
+			req = string(line)[comma1 : comma2+1]
+		}
+
+		var request Request
+		err = json.Unmarshal([]byte(req), &request)
 		if err != nil {
 			logrus.Errorf("Failed to parse log entry: %s\n", line)
 			continue
 		}
-		if strings.HasPrefix(logEntry.Request.Path, "/charts/") && logEntry.Request.StatusCode == 200 {
+		if strings.HasPrefix(request.Path, "/charts/") && request.StatusCode == 200 {
 			//TODO: 调用openapi接口获取应用信息，统计安装数据
 			logrus.Info("========统计安装数据========")
 		}
