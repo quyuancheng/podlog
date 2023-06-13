@@ -3,6 +3,7 @@ package main
 import (
 	"bufio"
 	"context"
+	"encoding/json"
 	"fmt"
 	"github.com/sirupsen/logrus"
 	"io"
@@ -10,12 +11,30 @@ import (
 	"k8s.io/client-go/rest"
 	"log"
 	"os"
+	"strings"
 	"time"
 
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/tools/clientcmd"
 )
+
+type LogEntry struct {
+	Timestamp string  `json:"timestamp"`
+	Info      string  `json:"info"`
+	Request   Request `json:"request"`
+}
+
+type Request struct {
+	Path       string `json:"path"`
+	Comment    string `json:"comment"`
+	ClientIP   string `json:"clientIP"`
+	Method     string `json:"method"`
+	StatusCode int    `json:"statusCode"`
+	Latency    string `json:"latency"`
+	ReqID      string `json:"reqID"`
+}
+
 
 func main() {
 	var config *rest.Config
@@ -37,8 +56,10 @@ func main() {
 		log.Fatalf("Failed to create client: %v", err)
 		return
 	}
-
-	namespace := "helm"
+	namespace := os.Getenv("NAMESPACE")
+	if namespace == "" {
+		namespace = "helm"
+	}
 	podName := os.Getenv("POD_NAME")
 	if podName == "" {
 		podName = "image-demo-nginx-57d594dcd-vn9rm"
@@ -48,7 +69,13 @@ func main() {
 		logrus.Errorf("get pod %v error:%v", podName, err)
 		return
 	}
-	containerName := pod.Spec.Containers[0].Name
+	var containerName string
+	containerName = "nginx"
+	for _, c := range pod.Spec.Containers {
+		if strings.Contains(c.Name, "chartmuseum"){
+			containerName = c.Name
+		}
+	}
 	req := clientset.CoreV1().Pods(namespace).GetLogs(podName, &corev1.PodLogOptions{
 		Container: containerName,
 		Follow:    true,
@@ -91,6 +118,17 @@ func watchLogs(stream io.ReadCloser) (string, error) {
 			return "", fmt.Errorf("failed to read log line: %v", err)
 		}
 		fmt.Printf("Log line: %s", line)
+		var logEntry LogEntry
+		err = json.Unmarshal(line, &logEntry)
+		if err != nil {
+			logrus.Errorf("Failed to parse log entry: %s\n", line)
+			continue
+		}
+		if strings.HasPrefix(logEntry.Request.Path, "/charts/") && logEntry.Request.StatusCode == 200 {
+			//TODO: 调用openapi接口获取应用信息，统计安装数据
+			logrus.Info("========统计安装数据========")
+		}
+
 	}
 	return "", nil
 }
