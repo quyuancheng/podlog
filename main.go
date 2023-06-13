@@ -71,10 +71,13 @@ func main() {
 	}
 	var containerName string
 	containerName = "nginx"
-	for _, c := range pod.Spec.Containers {
-		if strings.Contains(c.Name, "chartmuseum"){
-			containerName = c.Name
-		}
+	if strings.Contains(pod.Name, "chartmuseum") {
+		//for _, c := range pod.Spec.Containers {
+		//	if strings.Contains(c.Name, "chartmuseum"){
+		//		containerName = c.Name
+		//	}
+		//}
+		containerName = pod.Spec.Containers[0].Name
 	}
 	req := clientset.CoreV1().Pods(namespace).GetLogs(podName, &corev1.PodLogOptions{
 		Container: containerName,
