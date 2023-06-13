@@ -61,21 +61,24 @@ func main() {
 	if namespace == "" {
 		namespace = "helm"
 	}
-	podName := "image-demo-nginx-57d594dcd-vn9rm"
-	pod, err := clientset.CoreV1().Pods(namespace).Get(context.Background(), podName, v1.GetOptions{})
+	var podName string
+	pods, err := clientset.CoreV1().Pods(namespace).List(context.Background(), v1.ListOptions{})
 	if err != nil {
-		logrus.Errorf("get pod %v error:%v", podName, err)
+		logrus.Errorf("get pods name error:%v", err)
 		return
 	}
 	var containerName string
 	containerName = "nginx"
-	if strings.Contains(pod.Name, "chartmuseum") {
-		//for _, c := range pod.Spec.Containers {
-		//	if strings.Contains(c.Name, "chartmuseum"){
-		//		containerName = c.Name
-		//	}
-		//}
-		containerName = pod.Spec.Containers[0].Name
+	for _, pod := range pods.Items{
+		if strings.Contains(pod.Name, "chartmuseum") {
+			//for _, c := range pod.Spec.Containers {
+			//	if strings.Contains(c.Name, "chartmuseum"){
+			//		containerName = c.Name
+			//	}
+			//}
+			podName = pod.Name
+			containerName = pod.Spec.Containers[0].Name
+		}
 	}
 	req := clientset.CoreV1().Pods(namespace).GetLogs(podName, &corev1.PodLogOptions{
 		Container: containerName,
