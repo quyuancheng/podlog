@@ -20,8 +20,9 @@ import (
 )
 
 type LogEntry struct {
-	Timestamp string  `json:"timestamp"`
-	Info      string  `json:"info"`
+	Timestamp string `json:"timestamp"`
+	Level     string `json:"level"`
+	Message   string `json:"message"`
 	Request   Request `json:"request"`
 }
 
@@ -60,10 +61,7 @@ func main() {
 	if namespace == "" {
 		namespace = "helm"
 	}
-	podName := os.Getenv("POD_NAME")
-	if podName == "" {
-		podName = "image-demo-nginx-57d594dcd-vn9rm"
-	}
+	podName := "image-demo-nginx-57d594dcd-vn9rm"
 	pod, err := clientset.CoreV1().Pods(namespace).Get(context.Background(), podName, v1.GetOptions{})
 	if err != nil {
 		logrus.Errorf("get pod %v error:%v", podName, err)
@@ -131,7 +129,6 @@ func watchLogs(stream io.ReadCloser) (string, error) {
 			//TODO: 调用openapi接口获取应用信息，统计安装数据
 			logrus.Info("========统计安装数据========")
 		}
-
 	}
 	return "", nil
 }
