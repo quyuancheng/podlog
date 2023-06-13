@@ -60,25 +60,35 @@ func main() {
 	if namespace == "" {
 		namespace = "helm"
 	}
-	var podName string
-	pods, err := clientset.CoreV1().Pods(namespace).List(context.Background(), v1.ListOptions{})
-	if err != nil {
-		logrus.Errorf("get pods name error:%v", err)
-		return
-	}
 	var containerName string
-	containerName = "nginx"
-	for _, pod := range pods.Items {
-		if strings.Contains(pod.Name, "chartmuseum") {
-			//for _, c := range pod.Spec.Containers {
-			//	if strings.Contains(c.Name, "chartmuseum"){
-			//		containerName = c.Name
-			//	}
-			//}
-			podName = pod.Name
-			containerName = pod.Spec.Containers[0].Name
+	podName := os.Getenv("POD_NAME")
+	if !strings.Contains(podName, "chartmuseum") {
+		pods, err := clientset.CoreV1().Pods(namespace).List(context.Background(), v1.ListOptions{})
+		if err != nil {
+			logrus.Errorf("get pods name error:%v", err)
+			return
+		}
+
+		for _, pod := range pods.Items {
+			if strings.Contains(pod.Name, "chartmuseum") {
+				podName = pod.Name
+				containerName = pod.Spec.Containers[0].Name
+			}
+		}
+	} else {
+		pod, err := clientset.CoreV1().Pods(namespace).Get(context.Background(), podName, v1.GetOptions{})
+		if err != nil {
+			logrus.Errorf("get pods name error:%v", err)
+			return
+		}
+		podName = pod.Name
+		for _, c := range pod.Spec.Containers {
+			if strings.Contains(c.Name, "chartmuseum"){
+				containerName = c.Name
+			}
 		}
 	}
+
 	req := clientset.CoreV1().Pods(namespace).GetLogs(podName, &corev1.PodLogOptions{
 		Container: containerName,
 		Follow:    true,
